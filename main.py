@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, PhotoImage, filedialog
+from PIL import Image, ImageTk
 import webbrowser
 import hashlib
 
@@ -194,13 +195,30 @@ class Window2:
         #self.root.attributes('-fullscreen', False)
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
-        self.notebook = ttk.Notebook(self.root)
+        self.input_text = tk.StringVar()
+        self.output_text = tk.StringVar()
+
+        self.about = ttk.Label(self.root, text="Введите текст, который необходимо захэшировать.",
+                               wraplength=600, style='Custom.TLabel', justify='center')
+        self.about.pack()
+
+        self.entry = ttk.Entry(self.root, width=50, textvariable=self.input_text, font=('TkDefaultFont', 14),
+                               style='Custom.TEntry')
+        self.entry.focus()
+        self.entry.pack(pady=5)
+
+        self.notebook = ttk.Notebook(self.root, width=600, height=600)
         # self.notebook
         self.notebook.pack()
 
-        hash_types = ["SHA-1", "SHA-2", "MD5"]
+        hash_types = ["MD5", "SHA-1", "SHA-2"]
         for hash_type in hash_types:
             self.add_tab(hash_type)
+
+        self.output = ttk.Entry(self.root, width=50, textvariable=self.output_text, font=('TkDefaultFont', 14),
+                                style='Custom.TEntry',
+                                state='readonly')
+        self.output.pack(pady=20)
 
         self.return_button = ttk.Button(self.root, text="Вернуться в главное меню",
                                         command=self.close_window,
@@ -215,8 +233,9 @@ class Window2:
         image_path = f"images/{hash_type}/{hash_type}.png"
 
         # Загружаем изображение
-        image = tk.PhotoImage(file=image_path)
-        image = image.subsample(2, 2)
+        image = Image.open(image_path)
+        image = image.resize((600, 600))
+        image = ImageTk.PhotoImage(image)
 
         # Отображаем изображение на вкладке
         label = tk.Label(tab, image=image)
