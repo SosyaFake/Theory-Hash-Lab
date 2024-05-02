@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, PhotoImage, filedialog
 from PIL import Image, ImageTk
 import webbrowser
 import hashlib
+import MD5
 
 
 def spawn_window(root, window_width, window_height):
@@ -60,6 +61,19 @@ class MainWindow:
                                                     command=self.open_telegram_bot,
                                                     image=self.telegram_image, style='Custom.TButton', compound='left')
         self.button_to_crypto_telegram.pack(pady=10)
+
+        self.root.bind_all('<Control-c>', self.on_entry_copied)
+        self.root.bind_all('<Control-v>', self.on_entry_pasted)
+
+    @staticmethod
+    def on_entry_copied(event):
+        if isinstance(event.widget, ttk.Entry):
+            event.widget.event_generate('<<Copy>>')
+
+    @staticmethod
+    def on_entry_pasted(event):
+        if isinstance(event.widget, ttk.Entry):
+            event.widget.event_generate('<<Paste>>')
 
     def open_window1(self):
         self.root.withdraw()
@@ -143,10 +157,19 @@ class Window1:
                                         style='Custom.TButton', compound='left')
         self.return_button.pack(pady=35)
 
+        self.entry.bind("<Button-3>", self.show_copy_menu)
+        self.copy_menu = tk.Menu(self.root, tearoff=0)
+        self.copy_menu.add_command(label="Копировать", command=self.copy_text)
+
     def close_window(self):
         if tk.messagebox.askyesno("Выход", "Вы уверены, что хотите вернуться в главное меню?"):
             self.root.destroy()
             root.deiconify()  # Показать основное окно снова
+
+    def show_copy_menu(self, event):
+        self.entry.focus()
+        self.entry.selection_range(0, tk.END)
+        self.copy_menu.post(event.x_root, event.y_root)
 
     def copy_text(self):
         text = self.output.get()
@@ -190,7 +213,8 @@ class Window2:
         self.root.title("Window 2")
         self.root.iconbitmap('images/icons/icon.ico')
 
-        spawn_window(self.root, 900, 720)
+        # spawn_window(self.root, 900, 720)
+        spawn_window(self.root, 1800, 895)
         #self.root.resizable(width=False, height=False)
         #self.root.attributes('-fullscreen', False)
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
@@ -207,23 +231,52 @@ class Window2:
         self.entry.focus()
         self.entry.pack(pady=5)
 
-        self.notebook = ttk.Notebook(self.root, width=600, height=600)
-        # self.notebook
-        self.notebook.pack()
+        self.image_path = f"images/MD5/MD5.png"
 
-        hash_types = ["MD5", "SHA-1", "SHA-2"]
-        for hash_type in hash_types:
-            self.add_tab(hash_type)
+        # Загружаем изображение
+        self.image = Image.open(self.image_path)
+        self.image = self.image.resize((600, 600))
+        self.image = ImageTk.PhotoImage(self.image)
+
+        # Отображаем изображение на вкладке
+        self.labelMD5 = tk.Label(self.root, image=self.image)
+        self.labelMD5.image = self.image  # сохраняем ссылку на изображение
+        self.labelMD5.pack(pady=5)
+
+        # self.notebook = ttk.Notebook(self.root, width=600, height=600)
+        # self.notebook
+        # self.notebook.pack()
+
+        # hash_types = ["MD5", "SHA-1", "SHA-2"]
+        # for hash_type in hash_types:
+        #    self.add_tab(hash_type)
 
         self.output = ttk.Entry(self.root, width=50, textvariable=self.output_text, font=('TkDefaultFont', 14),
                                 style='Custom.TEntry',
                                 state='readonly')
-        self.output.pack(pady=20)
+        self.output.pack(pady=5)
+
+        self.hash_button = ttk.Button(self.root, text="Захэшировать",
+                                      command=self.hash,
+                                      style='Custom.TButton', compound='left')
+        self.hash_button.pack(pady=5)
 
         self.return_button = ttk.Button(self.root, text="Вернуться в главное меню",
                                         command=self.close_window,
                                         style='Custom.TButton', compound='left')
         self.return_button.pack()
+
+        self.entry.bind("<Button-3>", self.show_copy_menu)
+        self.copy_menu = tk.Menu(self.root, tearoff=0)
+        self.copy_menu.add_command(label="Копировать", command=self.copy_text)
+
+    def hash(self):
+        MD5.md5(self.entry.get(), None, self.output, self.output_text)
+
+    def show_copy_menu(self, event):
+        self.entry.focus()
+        self.entry.selection_range(0, tk.END)
+        self.copy_menu.post(event.x_root, event.y_root)
 
     def add_tab(self, hash_type):
         tab = ttk.Frame(self.notebook)
@@ -241,6 +294,12 @@ class Window2:
         label = tk.Label(tab, image=image)
         label.image = image  # сохраняем ссылку на изображение
         label.pack()
+
+    def copy_text(self):
+        text = self.output.get()
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
 
     def close_window(self):
         if tk.messagebox.askyesno("Выход", "Вы уверены, что хотите вернуться в главное меню?"):
