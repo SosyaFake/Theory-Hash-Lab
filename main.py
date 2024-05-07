@@ -139,7 +139,8 @@ class Window1:
         self.combo.set(self.options[0])
         self.combo.pack(pady=20)
 
-        self.output = ttk.Entry(self.root, width=50, textvariable=self.output_text, font=('TkDefaultFont', 14), style='Custom.TEntry',
+        self.output = ttk.Entry(self.root, width=50, textvariable=self.output_text, font=('TkDefaultFont', 14),
+                                style='Custom.TEntry',
                                 state='readonly')
         self.output.pack(pady=20)
 
@@ -213,10 +214,9 @@ class Window2:
         self.root.title("Window 2")
         self.root.iconbitmap('images/icons/icon.ico')
 
-        # spawn_window(self.root, 900, 720)
         spawn_window(self.root, 1800, 895)
-        #self.root.resizable(width=False, height=False)
-        #self.root.attributes('-fullscreen', False)
+        self.root.resizable(width=False, height=False)
+        self.root.attributes('-fullscreen', False)
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
         self.input_text = tk.StringVar()
@@ -243,14 +243,6 @@ class Window2:
         self.labelMD5.image = self.image  # сохраняем ссылку на изображение
         self.labelMD5.pack(pady=5)
 
-        # self.notebook = ttk.Notebook(self.root, width=600, height=600)
-        # self.notebook
-        # self.notebook.pack()
-
-        # hash_types = ["MD5", "SHA-1", "SHA-2"]
-        # for hash_type in hash_types:
-        #    self.add_tab(hash_type)
-
         self.output = ttk.Entry(self.root, width=50, textvariable=self.output_text, font=('TkDefaultFont', 14),
                                 style='Custom.TEntry',
                                 state='readonly')
@@ -266,34 +258,89 @@ class Window2:
                                         style='Custom.TButton', compound='left')
         self.return_button.pack()
 
-        self.entry.bind("<Button-3>", self.show_copy_menu)
-        self.copy_menu = tk.Menu(self.root, tearoff=0)
-        self.copy_menu.add_command(label="Копировать", command=self.copy_text)
+        self.labels = None
+        self.buttons = None
+
+        self.label_block = ttk.Label(self.root, width=19, justify='right', font=('TkDefaultFont', 17), anchor='e',
+                                     wraplength=250,
+                                     relief='solid')
+        self.label_message = ttk.Label(self.root, width=30, justify='left', font=('TkDefaultFont', 17), anchor='w',
+                                       wraplength=550,
+                                       relief='solid')
+        self.label_constant = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
+                                        anchor='center', relief='solid', wraplength=550)
+
+        self.label_upper_A = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
+                                       anchor='center', background="#49d8ff")
+        self.label_upper_B = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
+                                       anchor='center', background="#49d8ff")
+        self.label_upper_C = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
+                                       anchor='center', background="#49d8ff")
+        self.label_upper_D = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
+                                       anchor='center', background="#49d8ff")
+
+        self.label_down_A = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17), anchor='center',
+                                      background="#49d8ff")
+        self.label_down_B = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17), anchor='center',
+                                      background="#49d8ff")
+        self.label_down_C = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17), anchor='center',
+                                      background="#49d8ff")
+        self.label_down_D = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17), anchor='center',
+                                      background="#49d8ff")
+
+        self.label_rotate = ttk.Label(self.root, width=5, justify='center', font=('TkDefaultFont', 17), anchor='center',
+                                      background='#ffe61d')
+
+        self.label_function = ttk.Label(self.root, width=4, justify='center', font=('TkDefaultFont', 17),
+                                        anchor='center', background='#74da00')
+
+        self.iteration_button = ttk.Button(self.root, text="Итерация ->",
+                                           style='Custom.TButton', compound='left')
+        self.round_button = ttk.Button(self.root, text="Раунд ->",
+                                           style='Custom.TButton', compound='left')
+        self.block_button = ttk.Button(self.root, text="Блок ->",
+                                           style='Custom.TButton', compound='left')
+
+
 
     def hash(self):
-        MD5.md5(self.entry.get(), None, self.output, self.output_text)
+        self.image_path = f"images/MD5/MD5-fix.png"
+        self.image = Image.open(self.image_path)
+        self.image = self.image.resize((600, 600))
+        self.image = ImageTk.PhotoImage(self.image)
+        self.labelMD5.configure(image=self.image)
+        self.labelMD5.image = self.image
 
-    def show_copy_menu(self, event):
-        self.entry.focus()
-        self.entry.selection_range(0, tk.END)
-        self.copy_menu.post(event.x_root, event.y_root)
+        self.label_block.place(x=332, y=142)
+        self.label_constant.place(x=458, y=368)
+        self.label_message.place(x=1217, y=142)
 
-    def add_tab(self, hash_type):
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text=hash_type)
+        self.label_upper_A.place(x=644, y=123)
+        self.label_upper_B.place(x=785, y=123)
+        self.label_upper_C.place(x=926, y=123)
+        self.label_upper_D.place(x=1067, y=123)
 
-        # Определяем путь к изображению
-        image_path = f"images/{hash_type}/{hash_type}.png"
+        self.label_down_A.place(x=644, y=663)
+        self.label_down_B.place(x=785, y=663)
+        self.label_down_C.place(x=926, y=663)
+        self.label_down_D.place(x=1067, y=663)
 
-        # Загружаем изображение
-        image = Image.open(image_path)
-        image = image.resize((600, 600))
-        image = ImageTk.PhotoImage(image)
+        self.label_rotate.place(x=663, y=439)
 
-        # Отображаем изображение на вкладке
-        label = tk.Label(tab, image=image)
-        label.image = image  # сохраняем ссылку на изображение
-        label.pack()
+        self.label_function.place(x=772, y=223)
+
+        self.labels = [self.label_block, self.label_constant, self.label_message,
+                       self.label_upper_A, self.label_upper_B, self.label_upper_C, self.label_upper_D,
+                       self.label_down_A, self.label_down_B, self.label_down_C, self.label_down_D,
+                       self.label_rotate, self.label_function]
+
+        self.block_button.place(x=28, y=721)
+        self.round_button.place(x=205, y=721)
+        self.iteration_button.place(x=382, y=721)
+
+        self.buttons = [self.block_button, self.round_button, self.iteration_button]
+
+        MD5.md5(self.entry.get(), self.labels, self.buttons, self.output, self.output_text)
 
     def copy_text(self):
         text = self.output.get()

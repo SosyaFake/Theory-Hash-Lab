@@ -50,35 +50,76 @@ def leftRotate(x, amount):
 # Message block stored in buffers is processed in the follg general manner:
 # A = B + rotate left by some amount<-(A + func(B, C, D) + additive constant + 1 of the 16 32-bit(4 byte) blocks converted to int form)
 
-def processMessage(msg):
+flag_block = False
+flag_round = False
+flag_iteration = False
+
+
+def change_flag_block():
+    global flag_block
+    flag_block = True
+
+
+def change_flag_round():
+    global flag_round
+    flag_round = True
+
+
+def change_flag_iteration():
+    global flag_iteration
+    flag_iteration = True
+    print('sss')
+
+
+def processMessage(msg, labels, buttons):
+    global flag_iteration
+    global flag_block
+    global flag_round
+
+    buttons[0].configure(command=change_flag_block)
+    buttons[1].configure(command=change_flag_round)
+    buttons[2].configure(command=change_flag_iteration)
+
     init_temp = init_MDBuffer[:]
     # create copy of the buffer init constants to preserve them for when message has multiple 512-bit blocks
 
     # message length is a multiple of 512bits, but the processing is to be done separately for every 512-bit block.
     for offset in range(0, len(msg), 64):
+
         A, B, C, D = init_temp  # have to initialise MD Buffer for every block
+        labels[3].configure(text=str(hex(A)).replace('0x', ''))
+        labels[4].configure(text=str(hex(B)).replace('0x', ''))
+        labels[5].configure(text=str(hex(C)).replace('0x', ''))
+        labels[6].configure(text=str(hex(D)).replace('0x', ''))
+
         block = msg[offset: offset + 64]  # create block to be processed
+        labels[0].configure(text=msg[offset:].hex())
+
         # msg is processed as chunks of 16-words, hence, 16 such 32-bit chunks
         for i in range(64):  # 1 pass through the loop processes some 32 bits out of the 512-bit block.
             if i < 16:
+                labels[12].configure(text='F1')
                 # Round 1
                 func = lambda b, c, d: (b & c) | (~b & d)
                 # if b is true then ans is c, else d.
                 index_func = lambda i: i
 
-            elif i >= 16 and i < 32:
+            elif 16 <= i < 32:
+                labels[12].configure(text='F2')
                 # Round 2
                 func = lambda b, c, d: (d & b) | (~d & c)
                 # if d is true then ans is b, else c.
                 index_func = lambda i: (5 * i + 1) % 16
 
-            elif i >= 32 and i < 48:
+            elif 32 <= i < 48:
+                labels[12].configure(text='F3')
                 # Round 3
                 func = lambda b, c, d: b ^ c ^ d
                 # Parity of b, c, d
                 index_func = lambda i: (3 * i + 5) % 16
 
-            elif i >= 48 and i < 64:
+            elif 48 <= i < 64:
+                labels[12].configure(text='F4')
                 # Round 4
                 func = lambda b, c, d: c ^ (b | ~d)
                 index_func = lambda i: (7 * i) % 16
@@ -90,13 +131,25 @@ def processMessage(msg):
             to_rotate = A + F + constants[i] + int.from_bytes(block[4 * G: 4 * G + 4], byteorder='little')
             newB = (B + leftRotate(to_rotate, rotate_by[i])) & 0xFFFFFFFF
 
+            labels[7].configure(text=str(hex(D)).replace('0x', ''))
+            labels[8].configure(text=str(hex(newB)).replace('0x', ''))
+            labels[9].configure(text=str(hex(B)).replace('0x', ''))
+            labels[10].configure(text=str(hex(C)).replace('0x', ''))
+
             A, B, C, D = D, newB, B, C
+
+
+            labels[1].configure(text=constants[i])
+            labels[11].configure(text=f'<<<{rotate_by[i]}')
         # rotate the contents of the 4 MD buffers by one every pass through the loop
 
         # Add the final output of the above stage to initial buffer states
         for i, val in enumerate([A, B, C, D]):
             init_temp[i] += val
             init_temp[i] &= 0xFFFFFFFF
+
+        print(init_temp)
+
     # The init_temp list now holds the MD(in the form of the 4 buffers A, B, C, D) of the 512-bit block of the
     # message fed.
 
@@ -112,14 +165,14 @@ def MD_to_hex(digest):
     return '{:032x}'.format(int.from_bytes(raw, byteorder='big'))
 
 
-def md5(msg, labels, output: ttk.Entry, entry_text: tk.StringVar):
+def md5(msg, labels, buttons, output: ttk.Entry, entry_text: tk.StringVar):
     msg = bytearray(msg, 'utf-8')  # create a copy of the original message in form of a sequence of integers [0, 256)
     msg = pad(msg)
 
+    labels[2].configure(text=msg.hex())
 
-    processed_msg = processMessage(msg)
+    processed_msg = processMessage(msg, labels, buttons)
     # processed_msg contains the integer value of the hash
-
 
     entry_text = entry_text.set(MD_to_hex(processed_msg))
     output.configure(textvariable=entry_text)
