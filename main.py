@@ -21,10 +21,54 @@ def on_select(event):
     event.widget.selection_clear()
 
 
+class ToolTip(object):
+
+    def __init__(self, widget):
+        self.widget = widget
+        self.tipwindow = None
+        self.id = None
+        self.x = self.y = 0
+
+    def showtip(self, text):
+        "Display text in tooltip window"
+        self.text = text
+        if self.tipwindow or not self.text:
+            return
+        x, y, cx, cy = self.widget.bbox("insert")
+        x = x + self.widget.winfo_rootx() + 57
+        y = y + cy + self.widget.winfo_rooty() + 27
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(1)
+        tw.wm_geometry("+%d+%d" % (x, y))
+        label = ttk.Label(tw, text=self.text, justify=tk.LEFT,
+                          background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                          font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+
+def CreateToolTip(widget, text):
+    toolTip = ToolTip(widget)
+
+    def enter(event):
+        toolTip.showtip(text)
+
+    def leave(event):
+        toolTip.hidetip()
+
+    widget.bind('<Enter>', enter)
+    widget.bind('<Leave>', leave)
+
+
 class MainWindow:
     def __init__(self, root):
         self.root = root
-        self.root.title("Main Window")
+        self.root.title("Главное меню")
         self.root.iconbitmap('images/icons/icon.ico')
         # self.root.geometry('600x720')
         spawn_window(self.root, 600, 720)
@@ -95,7 +139,7 @@ class MainWindow:
 class Window1:
     def __init__(self, root):
         self.root = tk.Toplevel(root)
-        self.root.title("Window 1")
+        self.root.title("Хэширование")
         self.root.iconbitmap('images/icons/icon.ico')
 
         spawn_window(self.root, 600, 600)
@@ -211,7 +255,7 @@ class Window1:
 class Window2:
     def __init__(self, root):
         self.root = tk.Toplevel(root)
-        self.root.title("Window 2")
+        self.root.title("Теория к хэшированию")
         self.root.iconbitmap('images/icons/icon.ico')
 
         spawn_window(self.root, 1800, 895)
@@ -248,6 +292,23 @@ class Window2:
                                 state='readonly')
         self.output.pack(pady=5)
 
+        CreateToolTip(self.output, text='''
+        Заносим в блок данных элемент n из массива 512-битных блоков. 
+        Сохраняются значения A, B, C и D, оставшиеся после операций над предыдущими блоками (или их начальные значения, если блок первый). 
+        AA = A 
+        BB = B 
+        CC = C 
+        DD = D
+    
+        Суммируем с результатом предыдущего цикла: 
+        A = AA + A
+        B = BB + B
+        C = CC + C
+        D = DD + D
+        
+        Переводим результат в 16-ричную систему счисления.
+        ''')
+
         self.hash_button = ttk.Button(self.root, text="Захэшировать",
                                       command=self.hash,
                                       style='Custom.TButton', compound='left')
@@ -258,17 +319,51 @@ class Window2:
                                         style='Custom.TButton', compound='left')
         self.return_button.pack()
 
+        self.label_message_text = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                            anchor='center', text='Ввод пользователя после выравнивания: ')
+
+        self.label_block_text = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                          anchor='center', text='Блок: ')
+
+        self.label_constant_text = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                             anchor='center', text='Константа: ')
+
         self.labels = None
         self.buttons = None
 
-        self.label_block = ttk.Label(self.root, width=19, justify='right', font=('TkDefaultFont', 17), anchor='e',
+        self.label_block = ttk.Label(self.root, justify='right', font=('TkDefaultFont', 17), anchor='e',
                                      wraplength=250,
                                      relief='solid')
-        self.label_message = ttk.Label(self.root, width=30, justify='left', font=('TkDefaultFont', 17), anchor='w',
+        CreateToolTip(self.label_block, text='''
+        В конец сообщения дописывают 64-битное представление длины данных (количество бит в сообщении) до выравнивания. 
+        Сначала записывают младшие 4 байта, затем старшие. Если длина превосходит 2 ^ 64 − 1 , то дописывают только младшие биты (эквивалентно взятию по модулю 2 ^ 64). 
+        После этого длина потока станет кратной 512. Вычисления будут основываться на представлении этого потока данных в виде массива слов по 512 бит.
+        ''')
+
+        self.label_message = ttk.Label(self.root, justify='left', font=('TkDefaultFont', 17), anchor='w',
                                        wraplength=550,
                                        relief='solid')
+        CreateToolTip(self.label_message, text='''
+        Сначала к концу потока дописывают единичный бит.
+        
+        Затем добавляют некоторое число нулевых бит такое, чтобы новая длина потока L ′ стала сравнима с 448 по модулю 512, 
+        ( L ′ = 512 × N + 448 ). Выравнивание происходит в любом случае, даже если длина исходного потока уже сравнима с 448.
+        ''')
+
         self.label_constant = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
                                         anchor='center', relief='solid', wraplength=550)
+
+        CreateToolTip(self.label_constant, text='''
+        Определим таблицу констант T [ 1 ... 64 ] — 64-элементная таблица данных, 
+        построенная следующим образом: T [ n ] = int ⁡ ( 2 ^ 32 ⋅ | sin ⁡ n | ).
+        ''')
+
+        self.number_block = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                      anchor='center', text='Блок: 1')
+        self.number_round = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                      anchor='center', text='Раунд: 1')
+        self.number_iteration = ttk.Label(self.root, justify='center', font=('TkDefaultFont', 17),
+                                          anchor='center', text='Итерация: 1')
 
         self.label_upper_A = ttk.Label(self.root, width=9, justify='center', font=('TkDefaultFont', 17),
                                        anchor='center', background="#49d8ff")
@@ -291,17 +386,27 @@ class Window2:
         self.label_rotate = ttk.Label(self.root, width=5, justify='center', font=('TkDefaultFont', 17), anchor='center',
                                       background='#ffe61d')
 
+        CreateToolTip(self.label_rotate, text='''
+        Циклический сдвиг влево на s бит          
+        ''')
+
         self.label_function = ttk.Label(self.root, width=4, justify='center', font=('TkDefaultFont', 17),
                                         anchor='center', background='#74da00')
+
+        CreateToolTip(self.label_function, text='''    
+        1-й этап: FunF ⁡ ( X , Y , Z ) = ( X ∧ Y ) ∨ ( ¬ X ∧ Z ) ,
+        2-й этап: FunG ⁡ ( X , Y , Z ) = ( X ∧ Z ) ∨ ( ¬ Z ∧ Y ),
+        3-й этап: FunH ⁡ ( X , Y , Z ) = X ⊕ Y ⊕ Z ,
+        4-й этап: FunI ⁡ ( X , Y , Z ) = Y ⊕ ( ¬ Z ∨ X ) ,
+        где ⊕ , ∧ , ∨ , ¬  побитовые логические операции XOR, AND, OR и NOT соответственно.
+        ''')
 
         self.iteration_button = ttk.Button(self.root, text="Итерация ->",
                                            style='Custom.TButton', compound='left')
         self.round_button = ttk.Button(self.root, text="Раунд ->",
-                                           style='Custom.TButton', compound='left')
+                                       style='Custom.TButton', compound='left')
         self.block_button = ttk.Button(self.root, text="Блок ->",
-                                           style='Custom.TButton', compound='left')
-
-
+                                       style='Custom.TButton', compound='left')
 
     def hash(self):
         self.image_path = f"images/MD5/MD5-fix.png"
@@ -310,6 +415,10 @@ class Window2:
         self.image = ImageTk.PhotoImage(self.image)
         self.labelMD5.configure(image=self.image)
         self.labelMD5.image = self.image
+
+        self.number_block.place(x=60, y=690)
+        self.number_round.place(x=230, y=690)
+        self.number_iteration.place(x=385, y=690)
 
         self.label_block.place(x=332, y=142)
         self.label_constant.place(x=458, y=368)
@@ -332,13 +441,19 @@ class Window2:
         self.labels = [self.label_block, self.label_constant, self.label_message,
                        self.label_upper_A, self.label_upper_B, self.label_upper_C, self.label_upper_D,
                        self.label_down_A, self.label_down_B, self.label_down_C, self.label_down_D,
-                       self.label_rotate, self.label_function]
+                       self.label_rotate, self.label_function,
+                       self.number_block, self.number_round, self.number_iteration]
 
         self.block_button.place(x=28, y=721)
         self.round_button.place(x=205, y=721)
         self.iteration_button.place(x=382, y=721)
 
         self.buttons = [self.block_button, self.round_button, self.iteration_button]
+
+        self.label_message_text.place(x=1260,y=110)
+        self.label_block_text.place(x=430, y=105)
+        self.label_constant_text.place(x=335, y=365)
+
 
         MD5.md5(self.entry.get(), self.labels, self.buttons, self.output, self.output_text)
 

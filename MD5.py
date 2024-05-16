@@ -2,20 +2,14 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
-# This list maintains the amount by which to rotate the buffers during processing stage
 rotate_by = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
              5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
              4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
              6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21]
 
-# This list maintains the additive constant to be added in each processing step.
 constants = [int(abs(math.sin(i + 1)) * 4294967296) & 0xFFFFFFFF for i in range(64)]
 
 
-# STEP 1: append padding bits s.t. the length is congruent to 448 modulo 512
-# which is equivalent to saying 56 modulo 64.
-# padding before adding the length of the original message is conventionally done as:
-# pad a one followed by zeros to become congruent to 448 modulo 512(or 56 modulo 64).
 def pad(msg):
     msg_len_in_bits = (8 * len(msg)) & 0xffffffffffffffff
     msg.append(0x80)
@@ -23,19 +17,10 @@ def pad(msg):
     while len(msg) % 64 != 56:
         msg.append(0)
 
-    # STEP 2: append a 64-bit version of the length of the length of the original message
-    # in the unlikely event that the length of the message is greater than 2^64,
-    # only the lower order 64 bits of the length are used.
-
-    # sys.byteorder -> 'little'
-    msg += msg_len_in_bits.to_bytes(8, byteorder='little')  # little endian convention
-    # to_bytes(8...) will return the lower order 64 bits(8 bytes) of the length.
+    msg += msg_len_in_bits.to_bytes(8, byteorder='little')
 
     return msg
 
-
-# STEP 3: initialise message digest buffer.
-# MD buffer is 4 words A, B, C and D each of 32-bits.
 
 init_MDBuffer = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476]
 
@@ -46,137 +31,249 @@ def leftRotate(x, amount):
     return (x << amount | x >> (32 - amount)) & 0xFFFFFFFF
 
 
-# STEP 4: process the message in 16-word blocks
-# Message block stored in buffers is processed in the follg general manner:
-# A = B + rotate left by some amount<-(A + func(B, C, D) + additive constant + 1 of the 16 32-bit(4 byte) blocks converted to int form)
+block_i = 0
+iteration_j = 0
 
-flag_block = False
-flag_round = False
-flag_iteration = False
+labels = []
 
 
-def change_flag_block():
-    global flag_block
-    flag_block = True
+def change_block():
+    global block_i
+    global iteration_j
+
+    if len(data) - 1 > block_i:
+        block_i += 1
+        iteration_j = 0
+        labels[12].configure(text='F1')
+    else:
+        return
+
+    labels[0].configure(text=data[block_i][block_i][0].hex())
+
+    labels[3].configure(text=str(hex(data[block_i][0][1][iteration_j][0])).replace('0x', ''))
+    labels[4].configure(text=str(hex(data[block_i][0][1][iteration_j][1])).replace('0x', ''))
+    labels[5].configure(text=str(hex(data[block_i][0][1][iteration_j][2])).replace('0x', ''))
+    labels[6].configure(text=str(hex(data[block_i][0][1][iteration_j][3])).replace('0x', ''))
+
+    labels[7].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][0])).replace('0x', ''))
+    labels[8].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][1])).replace('0x', ''))
+    labels[9].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][2])).replace('0x', ''))
+    labels[10].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][3])).replace('0x', ''))
+
+    labels[1].configure(text=constants[iteration_j])
+    labels[11].configure(text=f'<<<{rotate_by[iteration_j]}')
+
+    labels[13].configure(text=f'Блок: {block_i + 1}')
+    labels[14].configure(text=f'Раунд: {1}')
+    labels[15].configure(text=f'Итерация: {iteration_j + 1}')
 
 
-def change_flag_round():
-    global flag_round
-    flag_round = True
+def change_round():
+    global block_i
+    global iteration_j
+
+    if iteration_j < 16:
+        labels[12].configure(text='F2')
+        labels[14].configure(text=f'Раунд: {2}')
+        iteration_j = 16
+    elif 16 <= iteration_j < 32:
+        labels[12].configure(text='F3')
+        labels[14].configure(text=f'Раунд: {3}')
+        iteration_j = 32
+    elif 32 <= iteration_j < 48:
+        labels[12].configure(text='F4')
+        labels[14].configure(text=f'Раунд: {4}')
+        iteration_j = 48
+    elif 48 <= iteration_j < 64:
+        if len(data) - 1 > block_i:
+            block_i += 1
+            iteration_j = 0
+            labels[12].configure(text='F1')
+            labels[14].configure(text=f'Раунд: {1}')
+        else:
+            return
+    elif iteration_j == 64:
+        if len(data) - 1 > block_i:
+            block_i += 1
+            iteration_j = 0
+            labels[12].configure(text='F1')
+            labels[14].configure(text=f'Раунд: {1}')
+        else:
+            return
+
+    labels[0].configure(text=data[block_i][block_i][0].hex())
+
+    labels[3].configure(text=str(hex(data[block_i][0][1][iteration_j][0])).replace('0x', ''))
+    labels[4].configure(text=str(hex(data[block_i][0][1][iteration_j][1])).replace('0x', ''))
+    labels[5].configure(text=str(hex(data[block_i][0][1][iteration_j][2])).replace('0x', ''))
+    labels[6].configure(text=str(hex(data[block_i][0][1][iteration_j][3])).replace('0x', ''))
+
+    labels[7].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][0])).replace('0x', ''))
+    labels[8].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][1])).replace('0x', ''))
+    labels[9].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][2])).replace('0x', ''))
+    labels[10].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][3])).replace('0x', ''))
+
+    labels[1].configure(text=constants[iteration_j])
+    labels[11].configure(text=f'<<<{rotate_by[iteration_j]}')
+
+    labels[13].configure(text=f'Блок: {block_i + 1}')
+    labels[15].configure(text=f'Итерация: {iteration_j}')
 
 
-def change_flag_iteration():
-    global flag_iteration
-    flag_iteration = True
-    print('sss')
+def change_iteration():
+    global block_i
+    global iteration_j
+
+    if iteration_j == 64:
+        return
+
+    labels[0].configure(text=data[block_i][block_i][0].hex())
+
+    labels[3].configure(text=str(hex(data[block_i][0][1][iteration_j][0])).replace('0x', ''))
+    labels[4].configure(text=str(hex(data[block_i][0][1][iteration_j][1])).replace('0x', ''))
+    labels[5].configure(text=str(hex(data[block_i][0][1][iteration_j][2])).replace('0x', ''))
+    labels[6].configure(text=str(hex(data[block_i][0][1][iteration_j][3])).replace('0x', ''))
+
+    labels[7].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][0])).replace('0x', ''))
+    labels[8].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][1])).replace('0x', ''))
+    labels[9].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][2])).replace('0x', ''))
+    labels[10].configure(text=str(hex(data[block_i][0][1][iteration_j + 1][3])).replace('0x', ''))
+
+    labels[1].configure(text=constants[iteration_j])
+    labels[11].configure(text=f'<<<{rotate_by[iteration_j]}')
+
+    if iteration_j < 16:
+        labels[12].configure(text='F1')
+        labels[14].configure(text=f'Раунд: {1}')
+    elif 16 <= iteration_j < 32:
+        labels[12].configure(text='F2')
+        labels[14].configure(text=f'Раунд: {2}')
+    elif 32 <= iteration_j < 48:
+        labels[12].configure(text='F3')
+        labels[14].configure(text=f'Раунд: {3}')
+    elif 48 <= iteration_j < 65:
+        labels[12].configure(text='F4')
+        labels[14].configure(text=f'Раунд: {4}')
+
+    if iteration_j == 64:
+        if len(data) - 1 > block_i:
+            print('awdadsdawd')
+            block_i += 1
+            iteration_j = 0
+        else:
+            return
+    else:
+        iteration_j += 1
+
+    labels[13].configure(text=f'Блок: {block_i + 1}')
+    labels[15].configure(text=f'Итерация: {iteration_j}')
 
 
-def processMessage(msg, labels, buttons):
-    global flag_iteration
-    global flag_block
-    global flag_round
+data = []
 
-    buttons[0].configure(command=change_flag_block)
-    buttons[1].configure(command=change_flag_round)
-    buttons[2].configure(command=change_flag_iteration)
+
+def processMessage(msg, labels):
+    global data
 
     init_temp = init_MDBuffer[:]
-    # create copy of the buffer init constants to preserve them for when message has multiple 512-bit blocks
 
-    # message length is a multiple of 512bits, but the processing is to be done separately for every 512-bit block.
+    blocks = []
+
     for offset in range(0, len(msg), 64):
 
         A, B, C, D = init_temp  # have to initialise MD Buffer for every block
-        labels[3].configure(text=str(hex(A)).replace('0x', ''))
-        labels[4].configure(text=str(hex(B)).replace('0x', ''))
-        labels[5].configure(text=str(hex(C)).replace('0x', ''))
-        labels[6].configure(text=str(hex(D)).replace('0x', ''))
 
         block = msg[offset: offset + 64]  # create block to be processed
-        labels[0].configure(text=msg[offset:].hex())
 
-        # msg is processed as chunks of 16-words, hence, 16 such 32-bit chunks
-        for i in range(64):  # 1 pass through the loop processes some 32 bits out of the 512-bit block.
+        iterations = [[A, B, C, D]]
+
+        for i in range(64):
             if i < 16:
-                labels[12].configure(text='F1')
-                # Round 1
                 func = lambda b, c, d: (b & c) | (~b & d)
-                # if b is true then ans is c, else d.
                 index_func = lambda i: i
 
             elif 16 <= i < 32:
-                labels[12].configure(text='F2')
-                # Round 2
                 func = lambda b, c, d: (d & b) | (~d & c)
-                # if d is true then ans is b, else c.
                 index_func = lambda i: (5 * i + 1) % 16
 
             elif 32 <= i < 48:
-                labels[12].configure(text='F3')
-                # Round 3
                 func = lambda b, c, d: b ^ c ^ d
-                # Parity of b, c, d
                 index_func = lambda i: (3 * i + 5) % 16
 
             elif 48 <= i < 64:
-                labels[12].configure(text='F4')
-                # Round 4
                 func = lambda b, c, d: c ^ (b | ~d)
                 index_func = lambda i: (7 * i) % 16
 
-            F = func(B, C, D)  # operate on MD Buffers B, C, D
+            F = func(B, C, D)
             G = index_func(i)
-            # select one of the 32-bit words from the 512-bit block of the original message to operate on.
 
             to_rotate = A + F + constants[i] + int.from_bytes(block[4 * G: 4 * G + 4], byteorder='little')
             newB = (B + leftRotate(to_rotate, rotate_by[i])) & 0xFFFFFFFF
 
-            labels[7].configure(text=str(hex(D)).replace('0x', ''))
-            labels[8].configure(text=str(hex(newB)).replace('0x', ''))
-            labels[9].configure(text=str(hex(B)).replace('0x', ''))
-            labels[10].configure(text=str(hex(C)).replace('0x', ''))
-
             A, B, C, D = D, newB, B, C
 
+            iterations.append([A, B, C, D])
 
-            labels[1].configure(text=constants[i])
-            labels[11].configure(text=f'<<<{rotate_by[i]}')
-        # rotate the contents of the 4 MD buffers by one every pass through the loop
+        blocks.append([block, iterations, offset])
+        data.append(blocks)
 
-        # Add the final output of the above stage to initial buffer states
         for i, val in enumerate([A, B, C, D]):
             init_temp[i] += val
             init_temp[i] &= 0xFFFFFFFF
 
-        print(init_temp)
-
-    # The init_temp list now holds the MD(in the form of the 4 buffers A, B, C, D) of the 512-bit block of the
-    # message fed.
-
-    # The same process is to be performed for every 512-bit block to get the final MD(message digest).
-
-    # Construct the final message from the final states of the MD Buffers
     return sum(buffer_content << (32 * i) for i, buffer_content in enumerate(init_temp))
 
 
 def MD_to_hex(digest):
-    # takes MD from the processing stage, change its endian-ness and return it as 128-bit hex hash
     raw = digest.to_bytes(16, byteorder='little')
     return '{:032x}'.format(int.from_bytes(raw, byteorder='big'))
 
 
-def md5(msg, labels, buttons, output: ttk.Entry, entry_text: tk.StringVar):
-    msg = bytearray(msg, 'utf-8')  # create a copy of the original message in form of a sequence of integers [0, 256)
+def md5(msg, _labels, buttons, output: ttk.Entry, entry_text: tk.StringVar):
+    global labels
+    labels = _labels
+
+    global data
+    data.clear()
+
+    global block_i
+    global iteration_j
+    block_i = 0
+    iteration_j = 1
+
+    msg = bytearray(msg, 'utf-8')
     msg = pad(msg)
 
-    labels[2].configure(text=msg.hex())
+    _labels[2].configure(text=msg.hex())
 
-    processed_msg = processMessage(msg, labels, buttons)
-    # processed_msg contains the integer value of the hash
+    processed_msg = processMessage(msg, labels)
+
+    buttons[0].configure(command=change_block)
+    buttons[1].configure(command=change_round)
+    buttons[2].configure(command=change_iteration)
+
+    labels[0].configure(text=data[0][0][0].hex())
+
+    labels[3].configure(text=str(hex(data[0][0][1][0][0])).replace('0x', ''))
+    labels[4].configure(text=str(hex(data[0][0][1][0][1])).replace('0x', ''))
+    labels[5].configure(text=str(hex(data[0][0][1][0][2])).replace('0x', ''))
+    labels[6].configure(text=str(hex(data[0][0][1][0][3])).replace('0x', ''))
+
+    labels[7].configure(text=str(hex(data[0][0][1][0 + 1][0])).replace('0x', ''))
+    labels[8].configure(text=str(hex(data[0][0][1][0 + 1][1])).replace('0x', ''))
+    labels[9].configure(text=str(hex(data[0][0][1][0 + 1][2])).replace('0x', ''))
+    labels[10].configure(text=str(hex(data[0][0][1][0 + 1][3])).replace('0x', ''))
+
+    labels[1].configure(text=constants[0])
+    labels[11].configure(text=f'<<<{rotate_by[0]}')
+
+    labels[12].configure(text='F1')
+    labels[13].configure(text=f'Блок: {0 + 1}')
+    labels[14].configure(text=f'Раунд: {1}')
+    labels[15].configure(text=f'Итерация: {0 + 1}')
 
     entry_text = entry_text.set(MD_to_hex(processed_msg))
     output.configure(textvariable=entry_text)
-    # print("Message Hash: ", message_hash)
 
 
 if __name__ == '__main__':
